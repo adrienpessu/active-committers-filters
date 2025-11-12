@@ -28,6 +28,12 @@ type PageData struct {
 	TotalRepositories    int
 	FilteredRepositories int
 	RepositoryFilter     string
+	OrgStats             []OrgStat
+}
+
+type OrgStat struct {
+	Organization string
+	UserCount    int
 }
 
 var csvFilePath string
@@ -141,9 +147,65 @@ func filterUsersByRepository(users []User, repositories string) []User {
 	return filtered
 }
 
+func extractOrganization(repository string) string {
+	// Extract organization from "org/repo" format
+	parts := strings.Split(repository, "/")
+	if len(parts) > 0 {
+		return parts[0]
+	}
+	return repository
+}
+
+func calculateOrgStats(users []User) []OrgStat {
+	// Map to track which organization each user is assigned to (first one seen)
+	userToOrg := make(map[string]string)
+	// Map to count users per organization
+	orgUsers := make(map[string]map[string]bool)
+
+	// Process users and assign them to their first organization
+	for _, user := range users {
+		org := extractOrganization(user.Repository)
+		
+		// If user hasn't been assigned to an org yet, assign to this one
+		if _, exists := userToOrg[user.Login]; !exists {
+			userToOrg[user.Login] = org
+		}
+	}
+
+	// Count unique users per organization
+	for login, org := range userToOrg {
+		if orgUsers[org] == nil {
+			orgUsers[org] = make(map[string]bool)
+		}
+		orgUsers[org][login] = true
+	}
+
+	// Convert to slice and sort by user count (descending)
+	var stats []OrgStat
+	for org, users := range orgUsers {
+		stats = append(stats, OrgStat{
+			Organization: org,
+			UserCount:    len(users),
+		})
+	}
+
+	// Sort by user count (descending), then by name
+	for i := 0; i < len(stats); i++ {
+		for j := i + 1; j < len(stats); j++ {
+			if stats[i].UserCount < stats[j].UserCount || 
+			   (stats[i].UserCount == stats[j].UserCount && stats[i].Organization > stats[j].Organization) {
+				stats[i], stats[j] = stats[j], stats[i]
+			}
+		}
+	}
+
+	return stats
+}
+
 func handleIndex(w http.ResponseWriter, r *http.Request) {
 	totalUsers := countUniqueUsers(users)
 	totalRepositories := countUniqueRepositories(users)
+	orgStats := calculateOrgStats(users)
 
 	data := PageData{
 		Users:                users,
@@ -152,6 +214,7 @@ func handleIndex(w http.ResponseWriter, r *http.Request) {
 		TotalRepositories:    totalRepositories,
 		FilteredRepositories: totalRepositories,
 		RepositoryFilter:     "",
+		OrgStats:             orgStats,
 	}
 
 	tmpl := template.Must(template.ParseFS(templateFS, "templates/index.html"))
@@ -171,6 +234,7 @@ func handleFilter(w http.ResponseWriter, r *http.Request) {
 	filteredRepoCount := countUniqueRepositories(filteredUsers)
 	totalUsers := countUniqueUsers(users)
 	totalRepositories := countUniqueRepositories(users)
+	orgStats := calculateOrgStats(filteredUsers)
 
 	data := PageData{
 		Users:                filteredUsers,
@@ -179,6 +243,7 @@ func handleFilter(w http.ResponseWriter, r *http.Request) {
 		TotalRepositories:    totalRepositories,
 		FilteredRepositories: filteredRepoCount,
 		RepositoryFilter:     repositoryFilter,
+		OrgStats:             orgStats,
 	}
 
 	tmpl := template.Must(template.ParseFS(templateFS, "templates/index.html"))
