@@ -1,4 +1,5 @@
-# active-commiters-filters
+
+# [Deprecated] active-commiters-filters
 
 A Golang web application for analyzing active committers from CSV data. This tool helps you count unique users and filter them by repository.
 
