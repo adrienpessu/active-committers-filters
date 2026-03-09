@@ -1,0 +1,492 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Active Committers Analyzer</title>
+    <style>
+        * { margin: 0; padding: 0; box-sizing: border-box; }
+        body {
+            font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, Oxygen, Ubuntu, Cantarell, sans-serif;
+            background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+            min-height: 100vh; padding: 20px;
+        }
+        .container {
+            max-width: 1200px; margin: 0 auto; background: white;
+            border-radius: 10px; box-shadow: 0 10px 40px rgba(0,0,0,0.2); overflow: hidden;
+        }
+        header {
+            background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+            color: white; padding: 30px; text-align: center;
+        }
+        header h1 { font-size: 2.5em; margin-bottom: 10px; }
+        header p { font-size: 1.1em; opacity: 0.9; }
+        .upload-section { padding: 40px 30px; text-align: center; border-bottom: 1px solid #e0e0e0; }
+        .upload-section h2 { color: #333; margin-bottom: 10px; font-size: 1.5em; }
+        .upload-section p { color: #6c757d; margin-bottom: 20px; }
+        .upload-area {
+            border: 3px dashed #667eea; border-radius: 12px; padding: 40px;
+            cursor: pointer; transition: background-color 0.3s, border-color 0.3s;
+            max-width: 600px; margin: 0 auto;
+        }
+        .upload-area:hover, .upload-area.dragover { background-color: #f0f0ff; border-color: #764ba2; }
+        .upload-area .icon { font-size: 3em; margin-bottom: 10px; }
+        .upload-area .label { font-size: 1.1em; color: #333; font-weight: 500; }
+        .upload-area .sublabel { font-size: 0.9em; color: #6c757d; margin-top: 5px; }
+        #fileInput { display: none; }
+        .file-info {
+            margin-top: 15px; padding: 10px 20px; background: #e8f5e9;
+            border-radius: 8px; color: #2e7d32; font-weight: 500; display: none;
+        }
+        .stats {
+            display: none; grid-template-columns: repeat(auto-fit, minmax(200px, 1fr));
+            gap: 20px; padding: 30px; background: #f8f9fa;
+        }
+        .stats.visible { display: grid; }
+        .stat-card {
+            background: white; padding: 20px; border-radius: 8px;
+            box-shadow: 0 2px 10px rgba(0,0,0,0.1); text-align: center; transition: transform 0.2s;
+        }
+        .stat-card:hover { transform: translateY(-5px); }
+        .stat-number { font-size: 3em; font-weight: bold; color: #667eea; margin-bottom: 10px; }
+        .stat-label { font-size: 1em; color: #6c757d; text-transform: uppercase; letter-spacing: 1px; }
+        .filter-section { padding: 30px; display: none; }
+        .filter-section.visible { display: block; }
+        .filter-section h2 { color: #333; margin-bottom: 15px; font-size: 1.5em; }
+        .filter-section p { color: #6c757d; margin-bottom: 20px; }
+        label { font-weight: 600; color: #333; margin-bottom: 10px; font-size: 1em; display: block; }
+        textarea {
+            width: 100%; min-height: 150px; padding: 15px; border: 2px solid #e0e0e0;
+            border-radius: 8px; font-family: 'Courier New', monospace; font-size: 14px;
+            resize: vertical; transition: border-color 0.3s;
+        }
+        textarea:focus { outline: none; border-color: #667eea; }
+        .btn {
+            padding: 15px 30px; background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+            color: white; border: none; border-radius: 8px; font-size: 1.1em;
+            font-weight: 600; cursor: pointer; transition: transform 0.2s, box-shadow 0.2s;
+        }
+        .btn:hover { transform: translateY(-2px); box-shadow: 0 5px 20px rgba(102,126,234,0.4); }
+        .btn:active { transform: translateY(0); }
+        .btn-secondary { background: #6c757d; }
+        .btn-secondary:hover { box-shadow: 0 5px 20px rgba(108,117,125,0.4); }
+        .data-table { padding: 30px; display: none; }
+        .data-table.visible { display: block; }
+        .data-table h2 { color: #333; margin-bottom: 20px; font-size: 1.5em; }
+        table { width: 100%; border-collapse: collapse; margin-top: 20px; }
+        thead { background: #667eea; color: white; }
+        th, td { padding: 12px 15px; text-align: left; border-bottom: 1px solid #e0e0e0; }
+        th { font-weight: 600; text-transform: uppercase; font-size: 0.9em; letter-spacing: 0.5px; }
+        tbody tr { transition: background-color 0.2s; }
+        tbody tr:hover { background-color: #f8f9fa; }
+        tbody tr:nth-child(even) { background-color: #fafafa; }
+        .table-wrapper { overflow-x: auto; }
+        .badge { background: #667eea; color: white; padding: 4px 12px; border-radius: 12px; font-weight: 600; }
+        .btn-group { display: flex; gap: 10px; margin-top: 20px; }
+        .btn-group .btn { flex: 1; margin: 0; }
+        .btn-group .btn-secondary { flex: 0 0 auto; }
+        .checkbox-label {
+            display: inline-flex; align-items: center; cursor: pointer;
+            user-select: none; font-weight: 500; color: #333;
+        }
+        .checkbox-label input[type="checkbox"] { margin-right: 8px; width: 18px; height: 18px; cursor: pointer; }
+        .info-text { margin-left: 10px; color: #667eea; font-weight: 500; }
+        .download-section { padding: 0 30px 30px; display: none; }
+        .download-section.visible { display: block; }
+        @media (max-width: 768px) {
+            header h1 { font-size: 1.8em; }
+            .stats.visible { grid-template-columns: 1fr; }
+            .stat-number { font-size: 2.5em; }
+            table { font-size: 0.9em; }
+            th, td { padding: 10px; }
+            .btn-group { flex-direction: column; }
+        }
+    </style>
+</head>
+<body>
+    <div class="container">
+        <header>
+            <h1>&#x1F680; Active Committers Analyzer</h1>
+            <p>Analyze and filter active contributors from CSV data</p>
+        </header>
+
+        <div class="upload-section" id="uploadSection">
+            <h2>Upload CSV File</h2>
+            <p>Upload a GHAS maximum committers CSV export to analyze active contributors.</p>
+            <div class="upload-area" id="uploadArea">
+                <div class="icon">&#x1F4C1;</div>
+                <div class="label">Click to upload or drag &amp; drop</div>
+                <div class="sublabel">Accepts .csv files</div>
+            </div>
+            <input type="file" id="fileInput" accept=".csv">
+            <div class="file-info" id="fileInfo"></div>
+        </div>
+
+        <div class="stats" id="statsSection">
+            <div class="stat-card">
+                <div class="stat-number" id="totalUsers">0</div>
+                <div class="stat-label">Total Unique Users</div>
+            </div>
+            <div class="stat-card">
+                <div class="stat-number" id="filteredUsers">0</div>
+                <div class="stat-label">Filtered Users</div>
+            </div>
+            <div class="stat-card">
+                <div class="stat-number" id="filteredRepositories">0</div>
+                <div class="stat-label">Filtered Repositories</div>
+            </div>
+        </div>
+
+        <div class="filter-section" id="filterSection">
+            <h2>Repository Filter</h2>
+            <p>Enter repository names (one per line) to filter the user count. Leave empty to show all users.</p>
+            <label for="repositories" id="repoLabel">Repositories Filtered:</label>
+            <textarea id="repositories" placeholder="Example:&#10;org/repo1&#10;org/repo2&#10;org/repo3"></textarea>
+            <div class="btn-group">
+                <button class="btn" id="applyFilterBtn">Apply Filter</button>
+                <button class="btn btn-secondary" id="clearFilterBtn" style="display: none;">Clear Filter</button>
+            </div>
+        </div>
+
+        <div class="data-table" id="orgStatsSection">
+            <h2>Active Committers per Organization</h2>
+            <p style="color: #6c757d; margin-bottom: 15px;">&#x1F4CA; Each committer is assigned to their first organization only (deduplicated)</p>
+            <div class="table-wrapper">
+                <table>
+                    <thead><tr><th>Organization</th><th>Active Committers</th></tr></thead>
+                    <tbody id="orgStatsBody"></tbody>
+                </table>
+            </div>
+        </div>
+
+        <div class="data-table" id="userDataSection">
+            <h2>User Data</h2>
+            <p id="userDataInfo" style="color: #6c757d; margin-bottom: 15px;"></p>
+            <div style="margin-bottom: 15px;">
+                <label class="checkbox-label">
+                    <input type="checkbox" id="deduplicateToggle">
+                    <span>Show only latest push per user (deduplicate)</span>
+                </label>
+                <span class="info-text" id="deduplicateInfo" style="display: none;"></span>
+            </div>
+            <div class="table-wrapper">
+                <table id="userDataTable">
+                    <thead><tr><th>User Login</th><th>Organization / Repository</th><th>Last Pushed Date</th><th>Last Pushed Email</th></tr></thead>
+                    <tbody id="userDataBody"></tbody>
+                </table>
+            </div>
+        </div>
+
+        <div class="download-section" id="downloadSection">
+            <button class="btn" id="downloadBtn">&#x2B07;&#xFE0F; Download Filtered CSV</button>
+        </div>
+    </div>
+
+    <script>
+    (function () {
+        "use strict";
+
+        var allUsers = [];
+        var currentFiltered = [];
+        var repositoryFilter = "";
+
+        var uploadArea = document.getElementById("uploadArea");
+        var fileInput = document.getElementById("fileInput");
+        var fileInfo = document.getElementById("fileInfo");
+        var statsSection = document.getElementById("statsSection");
+        var filterSection = document.getElementById("filterSection");
+        var orgStatsSection = document.getElementById("orgStatsSection");
+        var userDataSection = document.getElementById("userDataSection");
+        var downloadSection = document.getElementById("downloadSection");
+        var totalUsersEl = document.getElementById("totalUsers");
+        var filteredUsersEl = document.getElementById("filteredUsers");
+        var filteredRepositoriesEl = document.getElementById("filteredRepositories");
+        var repoLabel = document.getElementById("repoLabel");
+        var repositoriesTextarea = document.getElementById("repositories");
+        var applyFilterBtn = document.getElementById("applyFilterBtn");
+        var clearFilterBtn = document.getElementById("clearFilterBtn");
+        var orgStatsBody = document.getElementById("orgStatsBody");
+        var userDataInfo = document.getElementById("userDataInfo");
+        var userDataBody = document.getElementById("userDataBody");
+        var deduplicateToggle = document.getElementById("deduplicateToggle");
+        var deduplicateInfo = document.getElementById("deduplicateInfo");
+        var downloadBtn = document.getElementById("downloadBtn");
+
+        function parseCSVLine(line) {
+            var result = [];
+            var current = "";
+            var inQuotes = false;
+            for (var i = 0; i < line.length; i++) {
+                var ch = line[i];
+                if (inQuotes) {
+                    if (ch === '"') {
+                        if (i + 1 < line.length && line[i + 1] === '"') {
+                            current += '"';
+                            i++;
+                        } else {
+                            inQuotes = false;
+                        }
+                    } else {
+                        current += ch;
+                    }
+                } else {
+                    if (ch === '"') {
+                        inQuotes = true;
+                    } else if (ch === ",") {
+                        result.push(current);
+                        current = "";
+                    } else {
+                        current += ch;
+                    }
+                }
+            }
+            result.push(current);
+            return result;
+        }
+
+        function parseCSV(text) {
+            var lines = text.split(/\r?\n/).filter(function (l) { return l.trim() !== ""; });
+            if (lines.length < 2) return [];
+            var header = parseCSVLine(lines[0]);
+            if (header.length < 4) return [];
+            var users = [];
+            for (var i = 1; i < lines.length; i++) {
+                var fields = parseCSVLine(lines[i]);
+                if (fields.length >= 4) {
+                    users.push({
+                        login: fields[0].trim(),
+                        repository: fields[1].trim(),
+                        lastPushed: fields[2].trim(),
+                        lastEmail: fields[3].trim()
+                    });
+                }
+            }
+            return users;
+        }
+
+        function countUniqueUsers(users) {
+            var set = {};
+            users.forEach(function (u) { set[u.login] = true; });
+            return Object.keys(set).length;
+        }
+
+        function countUniqueRepositories(users) {
+            var set = {};
+            users.forEach(function (u) { set[u.repository] = true; });
+            return Object.keys(set).length;
+        }
+
+        function filterUsersByRepository(users, repoText) {
+            if (!repoText.trim()) return users;
+            var repoMap = {};
+            repoText.split("\n").forEach(function (r) {
+                var trimmed = r.trim();
+                if (trimmed) repoMap[trimmed] = true;
+            });
+            if (Object.keys(repoMap).length === 0) return users;
+            return users.filter(function (u) { return repoMap[u.repository]; });
+        }
+
+        function extractOrganization(repository) {
+            var parts = repository.split("/");
+            return parts.length > 0 ? parts[0] : repository;
+        }
+
+        function calculateOrgStats(users) {
+            var userToOrg = {};
+            users.forEach(function (u) {
+                var org = extractOrganization(u.repository);
+                if (!userToOrg[u.login]) userToOrg[u.login] = org;
+            });
+            var orgUsers = {};
+            Object.keys(userToOrg).forEach(function (login) {
+                var org = userToOrg[login];
+                if (!orgUsers[org]) orgUsers[org] = {};
+                orgUsers[org][login] = true;
+            });
+            var stats = Object.keys(orgUsers).map(function (org) {
+                return { organization: org, userCount: Object.keys(orgUsers[org]).length };
+            });
+            stats.sort(function (a, b) {
+                if (a.userCount !== b.userCount) return b.userCount - a.userCount;
+                return a.organization.localeCompare(b.organization);
+            });
+            return stats;
+        }
+
+        function deduplicateUsers(users) {
+            var map = {};
+            users.forEach(function (u) {
+                if (!map[u.login] || u.lastPushed > map[u.login].lastPushed) {
+                    map[u.login] = u;
+                }
+            });
+            return Object.keys(map).map(function (k) { return map[k]; });
+        }
+
+        function renderUserTable(users) {
+            userDataBody.innerHTML = "";
+            users.forEach(function (u) {
+                var tr = document.createElement("tr");
+                [u.login, u.repository, u.lastPushed, u.lastEmail].forEach(function (val) {
+                    var td = document.createElement("td");
+                    td.textContent = val;
+                    tr.appendChild(td);
+                });
+                userDataBody.appendChild(tr);
+            });
+        }
+
+        function showDataSections() {
+            statsSection.classList.add("visible");
+            filterSection.classList.add("visible");
+            orgStatsSection.classList.add("visible");
+            userDataSection.classList.add("visible");
+            downloadSection.classList.add("visible");
+        }
+
+        function render() {
+            currentFiltered = filterUsersByRepository(allUsers, repositoryFilter);
+            var totalU = countUniqueUsers(allUsers);
+            var filteredU = countUniqueUsers(currentFiltered);
+            var filteredR = countUniqueRepositories(currentFiltered);
+            var orgStats = calculateOrgStats(currentFiltered);
+
+            totalUsersEl.textContent = totalU;
+            filteredUsersEl.textContent = filteredU;
+            filteredRepositoriesEl.textContent = filteredR;
+
+            orgStatsBody.innerHTML = "";
+            orgStats.forEach(function (s) {
+                var tr = document.createElement("tr");
+                var tdOrg = document.createElement("td");
+                tdOrg.style.fontWeight = "600";
+                tdOrg.textContent = s.organization;
+                var tdCount = document.createElement("td");
+                var badge = document.createElement("span");
+                badge.className = "badge";
+                badge.textContent = s.userCount;
+                tdCount.appendChild(badge);
+                tr.appendChild(tdOrg);
+                tr.appendChild(tdCount);
+                orgStatsBody.appendChild(tr);
+            });
+
+            if (repositoryFilter.trim()) {
+                userDataInfo.style.color = "#667eea";
+                userDataInfo.style.fontWeight = "500";
+                userDataInfo.textContent = "\uD83D\uDCCA Showing " + currentFiltered.length + " records filtered by repository criteria (" + filteredU + " unique users, " + filteredR + " unique repositories)";
+            } else {
+                userDataInfo.style.color = "#6c757d";
+                userDataInfo.style.fontWeight = "normal";
+                userDataInfo.textContent = "\uD83D\uDCCB Showing all " + currentFiltered.length + " records (" + totalU + " unique users, " + countUniqueRepositories(allUsers) + " unique repositories)";
+            }
+
+            deduplicateToggle.checked = false;
+            deduplicateInfo.style.display = "none";
+            renderUserTable(currentFiltered);
+            clearFilterBtn.style.display = repositoryFilter.trim() ? "block" : "none";
+        }
+
+        function handleFile(file) {
+            if (!file) return;
+            var reader = new FileReader();
+            reader.onload = function (e) {
+                allUsers = parseCSV(e.target.result);
+                if (allUsers.length === 0) {
+                    fileInfo.textContent = "\u26A0\uFE0F No valid data found. Ensure CSV has header: User login,Organization / repository,Last pushed date,Last pushed email";
+                    fileInfo.style.display = "block";
+                    fileInfo.style.background = "#fff3e0";
+                    fileInfo.style.color = "#e65100";
+                    return;
+                }
+                fileInfo.textContent = "\u2705 Loaded " + file.name + " \u2014 " + allUsers.length + " records";
+                fileInfo.style.display = "block";
+                fileInfo.style.background = "#e8f5e9";
+                fileInfo.style.color = "#2e7d32";
+                repositoryFilter = "";
+                repositoriesTextarea.value = "";
+                showDataSections();
+                render();
+            };
+            reader.readAsText(file);
+        }
+
+        uploadArea.addEventListener("click", function () { fileInput.click(); });
+        fileInput.addEventListener("change", function () {
+            if (fileInput.files.length > 0) handleFile(fileInput.files[0]);
+        });
+        uploadArea.addEventListener("dragover", function (e) {
+            e.preventDefault();
+            uploadArea.classList.add("dragover");
+        });
+        uploadArea.addEventListener("dragleave", function () {
+            uploadArea.classList.remove("dragover");
+        });
+        uploadArea.addEventListener("drop", function (e) {
+            e.preventDefault();
+            uploadArea.classList.remove("dragover");
+            if (e.dataTransfer.files.length > 0) handleFile(e.dataTransfer.files[0]);
+        });
+
+        applyFilterBtn.addEventListener("click", function () {
+            repositoryFilter = repositoriesTextarea.value;
+            render();
+        });
+
+        clearFilterBtn.addEventListener("click", function () {
+            repositoryFilter = "";
+            repositoriesTextarea.value = "";
+            updateRepoCount();
+            render();
+        });
+
+        repositoriesTextarea.addEventListener("input", updateRepoCount);
+
+        function updateRepoCount() {
+            var value = repositoriesTextarea.value.trim();
+            var repos = value.split("\n").filter(function (l) { return l.trim() !== ""; });
+            var countText = "";
+            if (repos.length > 0) {
+                countText = " (" + repos.length + (repos.length === 1 ? " repository" : " repositories") + ")";
+            }
+            repoLabel.textContent = "Repositories Filtered:" + countText;
+        }
+
+        deduplicateToggle.addEventListener("change", function () {
+            if (this.checked) {
+                var deduped = deduplicateUsers(currentFiltered);
+                renderUserTable(deduped);
+                deduplicateInfo.style.display = "inline";
+                deduplicateInfo.textContent = "\uD83D\uDC64 Showing " + deduped.length + " unique users";
+            } else {
+                renderUserTable(currentFiltered);
+                deduplicateInfo.style.display = "none";
+            }
+        });
+
+        downloadBtn.addEventListener("click", function () {
+            var rows = [["User login", "Organization / repository", "Last pushed date", "Last pushed email"]];
+            var data = deduplicateToggle.checked ? deduplicateUsers(currentFiltered) : currentFiltered;
+            data.forEach(function (u) {
+                rows.push([u.login, u.repository, u.lastPushed, u.lastEmail]);
+            });
+            var csv = rows.map(function (r) {
+                return r.map(function (field) {
+                    if (field.indexOf(",") !== -1 || field.indexOf('"') !== -1 || field.indexOf("\n") !== -1) {
+                        return '"' + field.replace(/"/g, '""') + '"';
+                    }
+                    return field;
+                }).join(",");
+            }).join("\n");
+            var blob = new Blob([csv], { type: "text/csv;charset=utf-8;" });
+            var link = document.createElement("a");
+            link.href = URL.createObjectURL(blob);
+            link.download = "filtered-committers.csv";
+            link.click();
+            URL.revokeObjectURL(link.href);
+        });
+    })();
+    </script>
+</body>
+</html>
