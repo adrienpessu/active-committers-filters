@@ -318,8 +318,15 @@
                 📋 Showing all {{len .Users}} records ({{.TotalUsers}} unique users, {{.TotalRepositories}} unique repositories)
             </p>
             {{end}}
+            <div style="margin-bottom: 15px;">
+                <label style="display: inline-flex; align-items: center; cursor: pointer; user-select: none;">
+                    <input type="checkbox" id="deduplicateToggle" style="margin-right: 8px; width: 18px; height: 18px; cursor: pointer;">
+                    <span style="font-weight: 500; color: #333;">Show only latest push per user (deduplicate)</span>
+                </label>
+                <span id="deduplicateInfo" style="margin-left: 10px; color: #667eea; font-weight: 500; display: none;"></span>
+            </div>
             <div class="table-wrapper">
-                <table>
+                <table id="userDataTable">
                     <thead>
                         <tr>
                             <th>User Login</th>
@@ -392,6 +399,44 @@
             const textarea = document.getElementById('repositories');
             textarea.addEventListener('input', updateRepositoryCount);
             updateRepositoryCount(); // Initialize count
+        });
+
+        // Deduplicate toggle logic
+        document.addEventListener('DOMContentLoaded', function() {
+            var toggle = document.getElementById('deduplicateToggle');
+            var table = document.getElementById('userDataTable');
+            var info = document.getElementById('deduplicateInfo');
+            var tbody = table.querySelector('tbody');
+            var originalHTML = tbody.innerHTML;
+
+            toggle.addEventListener('change', function() {
+                if (this.checked) {
+                    var allRows = Array.from(tbody.querySelectorAll('tr'));
+                    var userMap = new Map();
+                    allRows.forEach(function(row) {
+                        var cells = row.querySelectorAll('td');
+                        var login = cells[0].textContent.trim();
+                        var pushDate = cells[2].textContent.trim();
+                        if (!userMap.has(login)) {
+                            userMap.set(login, { row: row, date: pushDate });
+                        } else {
+                            var existing = userMap.get(login);
+                            if (pushDate > existing.date) {
+                                userMap.set(login, { row: row, date: pushDate });
+                            }
+                        }
+                    });
+                    tbody.innerHTML = '';
+                    userMap.forEach(function(entry) {
+                        tbody.appendChild(entry.row.cloneNode(true));
+                    });
+                    info.style.display = 'inline';
+                    info.textContent = '\ud83d\udc64 Showing ' + userMap.size + ' unique users';
+                } else {
+                    tbody.innerHTML = originalHTML;
+                    info.style.display = 'none';
+                }
+            });
         });
     </script>
 </body>

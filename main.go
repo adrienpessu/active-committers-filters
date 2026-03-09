@@ -165,7 +165,7 @@ func calculateOrgStats(users []User) []OrgStat {
 	// Process users and assign them to their first organization
 	for _, user := range users {
 		org := extractOrganization(user.Repository)
-		
+
 		// If user hasn't been assigned to an org yet, assign to this one
 		if _, exists := userToOrg[user.Login]; !exists {
 			userToOrg[user.Login] = org
@@ -192,8 +192,8 @@ func calculateOrgStats(users []User) []OrgStat {
 	// Sort by user count (descending), then by name
 	for i := 0; i < len(stats); i++ {
 		for j := i + 1; j < len(stats); j++ {
-			if stats[i].UserCount < stats[j].UserCount || 
-			   (stats[i].UserCount == stats[j].UserCount && stats[i].Organization > stats[j].Organization) {
+			if stats[i].UserCount < stats[j].UserCount ||
+				(stats[i].UserCount == stats[j].UserCount && stats[i].Organization > stats[j].Organization) {
 				stats[i], stats[j] = stats[j], stats[i]
 			}
 		}
