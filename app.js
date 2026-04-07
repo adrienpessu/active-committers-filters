@@ -3,6 +3,7 @@
 
     var allUsers = [];
     var currentFiltered = [];
+    var currentOrgStats = [];
     var repositoryFilter = "";
 
     var uploadArea = document.getElementById("uploadArea");
@@ -26,6 +27,7 @@
     var deduplicateToggle = document.getElementById("deduplicateToggle");
     var deduplicateInfo = document.getElementById("deduplicateInfo");
     var downloadBtn = document.getElementById("downloadBtn");
+    var downloadOrgStatsBtn = document.getElementById("downloadOrgStatsBtn");
 
     function parseCSVLine(line) {
         var result = [];
@@ -165,14 +167,14 @@
         var totalU = countUniqueUsers(allUsers);
         var filteredU = countUniqueUsers(currentFiltered);
         var filteredR = countUniqueRepositories(currentFiltered);
-        var orgStats = calculateOrgStats(currentFiltered);
+        currentOrgStats = calculateOrgStats(currentFiltered);
 
         totalUsersEl.textContent = totalU;
         filteredUsersEl.textContent = filteredU;
         filteredRepositoriesEl.textContent = filteredR;
 
         orgStatsBody.innerHTML = "";
-        orgStats.forEach(function (s) {
+        currentOrgStats.forEach(function (s) {
             var tr = document.createElement("tr");
             var tdOrg = document.createElement("td");
             tdOrg.style.fontWeight = "600";
@@ -280,12 +282,7 @@
         }
     });
 
-    downloadBtn.addEventListener("click", function () {
-        var rows = [["User login", "Organization / repository", "Last pushed date", "Last pushed email"]];
-        var data = deduplicateToggle.checked ? deduplicateUsers(currentFiltered) : currentFiltered;
-        data.forEach(function (u) {
-            rows.push([u.login, u.repository, u.lastPushed, u.lastEmail]);
-        });
+    function downloadCSV(rows, filename) {
         var csv = rows.map(function (r) {
             return r.map(function (field) {
                 if (field.indexOf(",") !== -1 || field.indexOf('"') !== -1 || field.indexOf("\n") !== -1) {
@@ -297,8 +294,25 @@
         var blob = new Blob([csv], { type: "text/csv;charset=utf-8;" });
         var link = document.createElement("a");
         link.href = URL.createObjectURL(blob);
-        link.download = "filtered-committers.csv";
+        link.download = filename;
         link.click();
         URL.revokeObjectURL(link.href);
+    }
+
+    downloadOrgStatsBtn.addEventListener("click", function () {
+        var rows = [["Organization", "Active Committers"]];
+        currentOrgStats.forEach(function (s) {
+            rows.push([s.organization, String(s.userCount)]);
+        });
+        downloadCSV(rows, "org-stats.csv");
+    });
+
+    downloadBtn.addEventListener("click", function () {
+        var rows = [["User login", "Organization / repository", "Last pushed date", "Last pushed email"]];
+        var data = deduplicateToggle.checked ? deduplicateUsers(currentFiltered) : currentFiltered;
+        data.forEach(function (u) {
+            rows.push([u.login, u.repository, u.lastPushed, u.lastEmail]);
+        });
+        downloadCSV(rows, "filtered-committers.csv");
     });
 })();
